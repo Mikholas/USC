@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasir Toko Kelontong</title>
+    <meta name="theme-color" content="#667eea">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+    <div id="notificationContainer" class="notification-container"></div>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>🛒 Kasir Toko Kelontong</h1>
+                <div class="admin-status-pill" id="adminStatusPill">
+                    <span id="adminStatusText">Guest</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="showSection('products')">📦 Produk</button>
+                <button class="btn btn-secondary" onclick="showSection('history')">📋 Riwayat</button>
+                <button class="btn btn-primary" onclick="showSection('cashier')">💰 Kasir</button>
+                <button id="loginButton" class="btn btn-secondary" onclick="openLoginModal()">🔐 Login Admin</button>
+                <button id="logoutButton" class="btn btn-danger" style="display: none;" onclick="logoutAdmin()">Keluar</button>
+                <button id="backupBtn" class="btn btn-secondary" onclick="backupData()" style="display:none;">Backup JSON</button>
+                <label id="restoreLabel" class="btn btn-secondary upload-btn" style="display:none;">
+                    Restore JSON
+                    <input type="file" id="restoreInput" accept="application/json" onchange="restoreData(event)" hidden>
+                </label>
+                <button id="resetDataBtn" class="btn btn-danger" style="display:none;" onclick="resetAllData()">Reset Data</button>
+            </div>
+        </header>
+
+        <!-- Section Kasir -->
+        <section id="cashier" class="section active">
+            <h2>Kasir</h2>
+            <div class="cashier-container">
+                <div class="cart-section">
+                    <h3>Keranjang Belanja</h3>
+                    <div class="search-box">
+                        <input type="text" id="productSearch" placeholder="Cari produk atau scan barcode..." onkeypress="handleSearchEnter(event)">
+                        <button class="btn btn-primary" onclick="addProductToCart()">Tambah</button>
+                    </div>
+                    <div class="cart-items" id="cartItems">
+                        <p class="empty-message">Keranjang kosong</p>
+                    </div>
+                    <div class="cart-summary">
+                        <div class="summary-row">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">Rp 0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Total Item:</span>
+                            <span id="totalItems">0</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total:</span>
+                            <span id="total">Rp 0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Metode Bayar:</span>
+                            <select id="paymentMethod" onchange="handlePaymentMethodChange()">
+                                <option value="cash">Cash</option>
+                                <option value="qris">QRIS (1%)</option>
+                                <option value="ewallet">E-Wallet (1.5%)</option>
+                                <option value="card">Kartu (2%)</option>
+                            </select>
+                        </div>
+                        <div class="summary-row">
+                            <span>Biaya Pembayaran:</span>
+                            <span id="paymentFee">Rp 0</span>
+                        </div>
+                        <div class="summary-row grand-total">
+                            <span>Grand Total:</span>
+                            <span id="grandTotal">Rp 0</span>
+                        </div>
+                    </div>
+                    <div class="payment-section">
+                        <div class="payment-input">
+                            <label>Bayar <span class="hint-cash" id="paymentHint">(cash: isi manual, non-cash otomatis)</span>:</label>
+                            <input type="number" id="paymentAmount" placeholder="0" min="0" onkeypress="handlePaymentEnter(event)">
+                        </div>
+                        <div class="change-display">
+                            <span>Kembalian:</span>
+                            <span id="change">Rp 0</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-danger" onclick="clearCart()">Hapus Semua</button>
+                            <button class="btn btn-success" onclick="processPayment()">Bayar</button>
+                            <button class="btn btn-secondary" onclick="openReceiptModal()" id="receiptPreviewBtn" style="display:none;">Struk</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="catalog-section">
+                    <div class="catalog-header">
+                        <h3>Katalog Produk</h3>
+                        <p>Daftar produk yang tersedia untuk pembeli/guest</p>
+                        <div class="catalog-meta">
+                            <span id="lastUpdateLabel">Terakhir diperbarui: -</span>
+                            <span id="storageStatusLabel">Produk 0 | Transaksi 0</span>
+                        </div>
+                    </div>
+                    <div class="catalog-list" id="catalogList">
+                        <p class="empty-message">Belum ada produk.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section Produk -->
+        <section id="products" class="section">
+            <h2>Manajemen Produk</h2>
+            <div class="products-container">
+                <div class="product-form" id="productFormCard">
+                    <h3>Tambah Produk Baru</h3>
+                    <p class="admin-hint" id="adminHint">Login sebagai admin untuk menambah/mengelola produk.</p>
+                    <div class="product-import-export">
+                        <button class="btn btn-secondary" id="exportProductsBtn" onclick="exportProductsCSV()">Ekspor Produk (CSV)</button>
+                        <label class="btn btn-secondary upload-btn">
+                            Impor Produk (CSV)
+                            <input type="file" id="importProductsInput" accept=".csv" onchange="importProductsCSV(event)" hidden>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Nama Produk:</label>
+                        <input type="text" id="productName" placeholder="Contoh: Beras 5kg">
+                    </div>
+                    <div class="form-group">
+                        <label>Harga:</label>
+                        <input type="number" id="productPrice" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Stok:</label>
+                        <input type="number" id="productStock" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Barcode (opsional):</label>
+                        <input type="text" id="productBarcode" placeholder="Kode unik produk">
+                    </div>
+                    <button id="addProductBtn" class="btn btn-primary" onclick="addProduct()">Tambah Produk</button>
+                </div>
+                <div class="products-list">
+                    <h3>Daftar Produk</h3>
+                    <div class="products-grid" id="productsList">
+                        <!-- Produk akan dimuat di sini -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section Riwayat -->
+        <section id="history" class="section">
+            <h2>Riwayat Transaksi</h2>
+            <div class="history-container">
+                <div class="history-stats">
+                    <div class="stat-card">
+                        <h3>Total Transaksi</h3>
+                        <p id="totalTransactions">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Pendapatan</h3>
+                        <p id="totalRevenue">Rp 0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Produk Terlaris</h3>
+                        <p id="topProduct">-</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Ekspor</h3>
+                        <button id="exportCsvBtn" class="btn btn-secondary" onclick="exportCSV()">Ekspor CSV</button>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Penjualan Harian (Grand Total)</h3>
+                        <span id="chartRangeLabel" class="chart-label">7 hari terakhir</span>
+                    </div>
+                    <canvas id="salesChart" width="600" height="220"></canvas>
+                </div>
+                <div class="insight-card">
+                    <h3>🤖 Sistem Cerdas</h3>
+                    <div class="insight-grid">
+                        <div class="insight-box">
+                            <h4>📦 Rekomendasi Restock</h4>
+                            <ul id="restockList" class="insight-list">
+                                <li class="empty">Belum ada rekomendasi</li>
+                            </ul>
+                        </div>
+                        <div class="insight-box">
+                            <h4>🛍️ Produk Sering Dibeli Bersama</h4>
+                            <ul id="bundleList" class="insight-list">
+                                <li class="empty">Belum ada data</li>
+                            </ul>
+                        </div>
+                        <div class="insight-box">
+                            <h4>⚠️ Anomali Transaksi</h4>
+                            <ul id="anomalyList" class="insight-list">
+                                <li class="empty">Tidak ada anomali</li>
+                            </ul>
+                        </div>
+                        <div class="insight-box">
+                            <h4>📊 Prediksi Penjualan</h4>
+                            <ul id="forecastList" class="insight-list">
+                                <li class="empty">Belum ada prediksi</li>
+                            </ul>
+                        </div>
+                        <div class="insight-box">
+                            <h4>⏰ Analisis Tren Waktu</h4>
+                            <ul id="trendList" class="insight-list">
+                                <li class="empty">Belum ada analisis</li>
+                            </ul>
+                        </div>
+                        <div class="insight-box">
+                            <h4>💰 Rekomendasi Diskon</h4>
+                            <ul id="discountList" class="insight-list">
+                                <li class="empty">Belum ada rekomendasi</li>
+                            </ul>
+                        </div>
+                        <div class="insight-box">
+                            <h4>📈 Analisis Profitabilitas</h4>
+                            <ul id="profitabilityList" class="insight-list">
+                                <li class="empty">Belum ada analisis</li>
+                            </ul>
+                        </div>
+                        <div class="insight-box">
+                            <h4>⏳ Prediksi Stok Habis</h4>
+                            <ul id="stockoutList" class="insight-list">
+                                <li class="empty">Belum ada prediksi</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="history-list" id="historyList">
+                    <!-- Riwayat akan dimuat di sini -->
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal Edit Produk -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>Edit Produk</h2>
+            <div class="form-group">
+                <label>Nama Produk:</label>
+                <input type="text" id="editProductName">
+            </div>
+            <div class="form-group">
+                <label>Harga:</label>
+                <input type="number" id="editProductPrice" min="0">
+            </div>
+            <div class="form-group">
+                <label>Stok:</label>
+                <input type="number" id="editProductStock" min="0">
+            </div>
+            <div class="form-group">
+                <label>Barcode:</label>
+                <input type="text" id="editProductBarcode">
+            </div>
+            <button class="btn btn-primary" onclick="saveProductEdit()">Simpan</button>
+        </div>
+    </div>
+
+    <!-- Modal Login Admin -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>Login Admin</h2>
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="adminUsername" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="adminPassword" placeholder="Kata sandi">
+            </div>
+            <p class="admin-credential-hint">Default: admin / admin123</p>
+            <button class="btn btn-primary" onclick="loginAdmin()">Login</button>
+        </div>
+    </div>
+
+    <!-- Modal Struk -->
+    <div id="receiptModal" class="modal">
+        <div class="modal-content receipt-content">
+            <span class="close" onclick="closeReceiptModal()">&times;</span>
+            <div id="receiptOutput" class="receipt-box">
+                <!-- Struk akan ditampilkan di sini -->
+            </div>
+            <div class="receipt-actions">
+                <button class="btn btn-secondary" onclick="copyReceipt()">Salin Struk</button>
+                <button class="btn btn-primary" onclick="printReceipt()">Cetak</button>
+                <button class="btn btn-secondary" onclick="shareReceiptWhatsApp()">Kirim WhatsApp</button>
+                <button class="btn btn-secondary" onclick="copyReceiptEmail()">Salin untuk Email</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
